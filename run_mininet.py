@@ -138,9 +138,6 @@ def run_test(commands, output_directory, name, bandwidth, initial_rtt, initial_l
     current_netem_delay = initial_rtt
     current_netem_loss = initial_loss
 
-    if not os.path.exists(output_directory):
-        os.makedirs(output_directory)
-
     write_config = [
         'Test Name: {}'.format(name),
         'Date: {}'.format(time.strftime('%c')),
@@ -333,6 +330,11 @@ def compress_output(dir, method):
         print('  * {}'.format(os.path.basename(f)))
 
 
+def profile(out_file, interval):
+    with open(out_file, 'w') as f:
+        subprocess.Popen(['./profile.sh', '{}'.format(os.getpid()), '{}'.format(interval)], stdout=f, stderr=f)
+
+
 if __name__ == '__main__':
     if check_tools() > 0:
         exit(1)
@@ -381,6 +383,10 @@ if __name__ == '__main__':
     output_directory = os.path.join(args.directory, '{}_{}'.format(time.strftime('%m%d_%H%M%S'), args.name))
 
     # setLogLevel('info')
+    if not os.path.exists(output_directory):
+        os.makedirs(output_directory)
+    profile(os.path.join(output_directory, 'process_profile.log'), 1)
+
     run_test(bandwidth=args.bandwidth,
              initial_rtt=args.rtt,
              initial_loss=args.loss,

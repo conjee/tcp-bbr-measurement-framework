@@ -1,5 +1,6 @@
 apt-get update
-apt-get install -y python-pip mininet ethtool netcat moreutils
+apt-get install -y python-pip mininet ethtool netcat moreutils tcpdump
+apt-get install -y sysstat
 pip install -r requirements.txt
 
 # this fixes mininet bug with ovs-controller
