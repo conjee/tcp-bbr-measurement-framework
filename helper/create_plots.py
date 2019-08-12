@@ -7,7 +7,7 @@ import matplotlib
 matplotlib.use('Agg')
 
 import matplotlib.pyplot as plt
-from pcap_data import PcapData
+from helper.pcap_data import PcapData
 from helper import PLOT_PATH, PLOT_TYPES
 from helper.util import print_line
 from helper import TEXT_WIDTH
@@ -201,7 +201,7 @@ def setup_ax(ax, title , label, xmin, xmax):
 
     ax.set_ylabel(label)
     ax.set_title(title)
-    ax.set_xlim(xmax=xmax, xmin=xmin)
+    ax.set_xlim(left=xmin, right=xmax)
 
 
 def plot_throughput(data, p_plt):
@@ -210,7 +210,7 @@ def plot_throughput(data, p_plt):
     total = len(throughput) - 1
 
     if total > 1 and PLOT_TOTAL:
-        data = throughput[total]
+        data = throughput['total']
         data = filter_smooth(data, 5, 2)
         p_plt.plot(data[0], data[1], label='Total', color='#444444')
 
@@ -218,7 +218,7 @@ def plot_throughput(data, p_plt):
         data = throughput[c]
         data = filter_smooth(data, 5, 2)
 
-        if int(c) != total:
+        if c != 'total':
             p_plt.plot(data[0], data[1], label='{}'.format(c))
 
     for c in retransmissions:
@@ -232,7 +232,7 @@ def plot_sending_rate(data, p_plt):
     total = len(sending_rate) - 1
 
     if total > 1 and PLOT_TOTAL:
-        data = sending_rate[total]
+        data = sending_rate['total']
         data = filter_smooth(data, 5, 2)
         p_plt.plot(data[0], data[1], label='Total', color='#444444')
 
@@ -240,7 +240,7 @@ def plot_sending_rate(data, p_plt):
         data = sending_rate[c]
         data = filter_smooth(data, 5, 2)
 
-        if int(c) != total:
+        if c != 'total':
             p_plt.plot(data[0], data[1], label='{}'.format(c))
 
     for c in retransmissions:
@@ -253,14 +253,14 @@ def plot_fairness(fairness, p_plt):
         data = filter_smooth((fairness[c][0], fairness[c][1]), 10, 2)
         p_plt.plot(data[0], data[1], label=c)
 
-    p_plt.set_ylim(ymin=0, ymax=1.1)
+    p_plt.set_ylim(bottom=0, top=1.1)
 
 
 def plot_rtt(rtt, p_plt):
     for c in rtt:
         data = rtt[c]
         p_plt.plot(data[0], data[1], label='{}'.format(c))
-    p_plt.set_ylim(ymin=0)
+    p_plt.set_ylim(bottom=0)
 
 
 def plot_avg_rtt(avg_rtt, p_plt):
@@ -268,7 +268,7 @@ def plot_avg_rtt(avg_rtt, p_plt):
         data = avg_rtt[c]
         data = filter_smooth(data, 3, 2)
         p_plt.plot(data[0], data[1], label='{}'.format(c))
-    p_plt.set_ylim(ymin=0)
+    p_plt.set_ylim(bottom=0)
 
 
 def plot_inflight(inflight, p_plt):
@@ -356,12 +356,12 @@ def plot_cwnd(cwnd, p_plt):
 
 
 def plot_retransmissions(ret_interval, p_plt):
-    plot_sum = (ret_interval[len(ret_interval) - 1][0][:],
-                ret_interval[len(ret_interval) - 1][1][:])
+    plot_sum = (ret_interval['total'][0][:],
+                ret_interval['total'][1][:])
     total_sum = 0
     for c in ret_interval:
 
-        if c is len(ret_interval) - 1:
+        if c is 'total':
             continue
 
         data = ret_interval[c]
@@ -390,12 +390,12 @@ def plot_retransmission_rate(ret_interval, p_plt):
             else:
                 rate.append(float(data[1][i]) / float(data[2][i]) * 100)
 
-        if c is len(ret_interval) - 1:
+        if c is 'total':
             p_plt.plot(ts, rate, label='Total Retransmission Rate', color='black')
         else:
             p_plt.plot(ts, rate, label='{}'.format(c), alpha=0.3)
 
-    p_plt.set_ylim(ymin=0)
+    p_plt.set_ylim(bottom=0)
 
 
 def plot_diff_inflight_bdp(data, p_plt):

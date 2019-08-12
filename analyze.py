@@ -9,7 +9,7 @@ import gzip
 from helper.csv_writer import write_to_csv, read_from_csv
 from helper.pcap_data import PcapData, DataInfo
 from helper.create_plots import plot_all
-from helper.util import check_directory, print_line, open_compressed_file, colorize
+from helper.util import check_directory, print_line, open_compressed_file, colorize, get_ip_from_filename, get_interface_from_filename
 
 from helper import PCAP1, PCAP2, PLOT_PATH, CSV_PATH, PLOT_TYPES
 from helper import BUFFER_FILE_EXTENSION, FLOW_FILE_EXTENSION
@@ -177,45 +177,45 @@ def parse_pcap(path, delta_t):
             total_retransmisions[1].append(0)
             total_retransmisions[2].append(0)
 
-            for i, c in enumerate(connections):
+            for key in connections:
 
-                if c not in active_connections:
+                if key not in active_connections:
                     continue
 
-                tp = float(sending_rate_data_size[i]) / delta_t
-                sending_rate[i][0].append(t)
-                sending_rate[i][1].append(tp)
-                sending_rate_data_size[i] = 0
+                tp = float(sending_rate_data_size[key]) / delta_t
+                sending_rate[key][0].append(t)
+                sending_rate[key][1].append(tp)
+                sending_rate_data_size[key] = 0
 
                 total_sending_rate[1][-1] += tp
 
-                retransmissions_interval[i][0].append(t)
-                retransmissions_interval[i][1].append(retransmission_counter[i])
-                retransmissions_interval[i][2].append(packet_counter[i])
-                total_retransmisions[1][-1] += retransmission_counter[i]
-                total_retransmisions[2][-1] += packet_counter[i]
-                retransmission_counter[i] = 0
-                packet_counter[i] = 0
+                retransmissions_interval[key][0].append(t)
+                retransmissions_interval[key][1].append(retransmission_counter[key])
+                retransmissions_interval[key][2].append(packet_counter[key])
+                total_retransmisions[1][-1] += retransmission_counter[key]
+                total_retransmisions[2][-1] += packet_counter[key]
+                retransmission_counter[key] = 0
+                packet_counter[key] = 0
 
-                inflight[i][0].append(t)
-                if len(inflight_avg[i]) > 0:
-                    inflight[i][1].append(sum(inflight_avg[i]) / len(inflight_avg[i]))
+                inflight[key][0].append(t)
+                if len(inflight_avg[key]) > 0:
+                    inflight[key][1].append(sum(inflight_avg[key]) / len(inflight_avg[key]))
                 else:
-                    inflight[i][1].append(0)
-                inflight_avg[i] = []
+                    inflight[key][1].append(0)
+                inflight_avg[key] = []
 
-                if len(avg_rtt_samples[i]) > 0:
-                    avg_rt = sum(avg_rtt_samples[i]) / len(avg_rtt_samples[i])
-                    avg_rtt[i][0].append(t)
-                    avg_rtt[i][1].append(avg_rt)
-                avg_rtt_samples[i] = []
+                if len(avg_rtt_samples[key]) > 0:
+                    avg_rt = sum(avg_rtt_samples[key]) / len(avg_rtt_samples[key])
+                    avg_rtt[key][0].append(t)
+                    avg_rtt[key][1].append(avg_rt)
+                avg_rtt_samples[key] = []
 
             t += delta_t
 
         if tcp.flags & 0x02 and tcp_tuple not in connections:
             connections.append(tcp_tuple)
             active_connections.append(tcp_tuple)
-            connection_index = connections.index(tcp_tuple)
+            connection_index = tcp_tuple
 
             start_seq[connection_index] = tcp.seq
 
@@ -251,7 +251,7 @@ def parse_pcap(path, delta_t):
                                                       tcp_tuple[2], tcp_tuple[3]))
             continue
 
-        connection_index = connections.index(tcp_tuple)
+        connection_index = tcp_tuple
 
         ts_val = None
         ts_ecr = None
@@ -259,8 +259,8 @@ def parse_pcap(path, delta_t):
         options = dpkt.tcp.parse_opts(tcp.opts)
         for opt in options:
             if opt[0] == dpkt.tcp.TCP_OPT_TIMESTAMP:
-                ts_val = reduce(lambda x, r: (x << 8) + r, map(ord, opt[1][:4]))
-                ts_ecr = reduce(lambda x, r: (x << 8) + r, map(ord, opt[1][4:]))
+                ts_val = int.from_bytes(opt[1][:4], 'big')
+                ts_ecr = int.from_bytes(opt[1][4:], 'big')
 
         if src_port > dst_port:
             # client -> server
@@ -348,20 +348,20 @@ def parse_pcap(path, delta_t):
             total_throughput[0].append(t)
             total_throughput[1].append(0)
 
-            for i, c in enumerate(connections):
-                if c not in active_connections:
+            for key in connections:
+                if key not in active_connections:
                     continue
-                tp = float(throughput_data_size[i]) / delta_t
-                throughput[i][0].append(t)
-                throughput[i][1].append(tp)
+                tp = float(throughput_data_size[key]) / delta_t
+                throughput[key][0].append(t)
+                throughput[key][1].append(tp)
                 total_throughput[1][-1] += tp
-                throughput_data_size[i] = 0
+                throughput_data_size[key] = 0
             t += delta_t
 
         if tcp.flags & 0x02 and tcp_tuple not in connections:
             connections.append(tcp_tuple)
             active_connections.append(tcp_tuple)
-            connection_index = connections.index(tcp_tuple)
+            connection_index = tcp_tuple
 
             throughput[connection_index] = ([], [])
             throughput_data_size[connection_index] = 0
@@ -371,7 +371,7 @@ def parse_pcap(path, delta_t):
                 active_connections.remove(tcp_tuple)
             continue
 
-        connection_index = connections.index(tcp_tuple)
+        connection_index = tcp_tuple
 
         if src_port > dst_port:
             # client -> server
@@ -393,9 +393,9 @@ def parse_pcap(path, delta_t):
     data_info = DataInfo(sync_duration=sync_duration,
                          sync_phases=sync_phases)
 
-    throughput[len(throughput)] = total_throughput
-    sending_rate[len(sending_rate)] = total_sending_rate
-    retransmissions_interval[len(retransmissions_interval)] = total_retransmisions
+    throughput['total'] = total_throughput
+    sending_rate['total'] = total_sending_rate
+    retransmissions_interval['total'] = total_retransmisions
 
     return PcapData(rtt=round_trips,
                     inflight=inflight,
@@ -413,17 +413,19 @@ def parse_pcap(path, delta_t):
 
 
 def print_progress(current, total):
-    print_line('  {:7.3}%          '.format( 100 * current / float(total)))
+    print_line('  {:7.3}%          '.format(100 * current / float(total)))
 
 
 def parse_buffer_backlog(path):
     output = {}
     paths = glob.glob(os.path.join(path, '*.{}*'.format(BUFFER_FILE_EXTENSION)))
 
-    for i, file_path in enumerate(paths):
-        output[i] = ([], [])
+    for file_path in paths:
+        intf = get_interface_from_filename(file_path)
+        output[intf] = ([], [])
         f = open_compressed_file(file_path)
         for line in f:
+            line = line.decode('utf8')
             split = line.split(';')
             timestamp = parse_timestamp(split[0])
             size = split[1].replace('b\n', '')
@@ -433,8 +435,8 @@ def parse_buffer_backlog(path):
                 size = float(size.replace('M', '')) * 1000000
             elif 'G' in size:
                 size = float(size.replace('G', '')) * 1000000000
-            output[i][0].append(timestamp)
-            output[i][1].append(float(size) * 8)
+            output[intf][0].append(timestamp)
+            output[intf][1].append(float(size) * 8)
         f.close()
     return output
 
@@ -447,15 +449,18 @@ def parse_bbr_and_cwnd_values(path):
 
     all_files = sorted(paths)
 
-    for i, file_path in enumerate(all_files):
+    for file_path in all_files:
 
-        bbr_values[i] = ([], [], [], [], [], [])
-        cwnd_values[i] = ([], [], [])
+        ip = get_ip_from_filename(file_path)
+
+        bbr_values[ip] = ([], [], [], [], [], [])
+        cwnd_values[ip] = ([], [], [])
 
         f = open_compressed_file(file_path)
 
         for line in f:
-            split = map(lambda x: x.strip(), line.split(';'))
+            line = line.decode('utf8')
+            split = line.split(';')
 
             timestamp = parse_timestamp(split[0])
             cwnd, ssthresh = 0, 0
@@ -465,9 +470,9 @@ def parse_bbr_and_cwnd_values(path):
             if split[2] != '':
                 ssthresh = int(split[2])
 
-            cwnd_values[i][0].append(timestamp)
-            cwnd_values[i][1].append(cwnd)
-            cwnd_values[i][2].append(ssthresh)
+            cwnd_values[ip][0].append(timestamp)
+            cwnd_values[ip][1].append(cwnd)
+            cwnd_values[ip][2].append(ssthresh)
 
             if split[3] != '':
                 bbr = split[3].replace('bw:', '')\
@@ -494,12 +499,12 @@ def parse_bbr_and_cwnd_values(path):
 
                 rtt = float(bbr[1])
 
-                bbr_values[i][0].append(timestamp)
-                bbr_values[i][1].append(bw)
-                bbr_values[i][2].append(rtt)
-                bbr_values[i][3].append(pacing_gain)
-                bbr_values[i][4].append(cwnd_gain)
-                bbr_values[i][5].append(bw * rtt / 1000)
+                bbr_values[ip][0].append(timestamp)
+                bbr_values[ip][1].append(bw)
+                bbr_values[ip][2].append(rtt)
+                bbr_values[ip][3].append(pacing_gain)
+                bbr_values[ip][4].append(cwnd_gain)
+                bbr_values[ip][5].append(bw * rtt / 1000)
 
         f.close()
     return bbr_values, cwnd_values
@@ -510,10 +515,11 @@ def parse_timestamp(string):
 
 
 def compute_total_values(bbr):
-    connection_first_index = [0, ] * len(bbr)
-    current_bw = [0, ] * len(bbr)
-    current_window = [0, ] * len(bbr)
-    current_gain = [0, ] * len(bbr)
+    connection_first_index = {f: 0 for f in bbr}
+    current_bw = {f: 0 for f in bbr}
+    current_window = {f: 0 for f in bbr}
+    current_gain = {f: 0 for f in bbr}
+
     total_bw = ([], [])
     total_window = ([], [])
     total_gain = ([], [])
@@ -545,20 +551,20 @@ def compute_total_values(bbr):
         connection_first_index[c] += 1
 
         total_bw[0].append(ts)
-        total_bw[1].append(sum(current_bw))
+        total_bw[1].append(sum(current_bw.values()))
 
         total_window[0].append(ts)
-        total_window[1].append(sum(current_window))
+        total_window[1].append(sum(current_window.values()))
 
         total_gain[0].append(ts)
-        total_gain[1].append(sum(current_gain))
+        total_gain[1].append(sum(current_gain.values()))
 
         min_window = 0
-        for i in connection_first_index:
+        for i in connection_first_index.values():
             if i > 0:
                 min_window += 1
 
-        if sum(current_window) == min_window:
+        if sum(current_window.values()) == min_window:
             if sync_window_start < 0:
                 sync_window_start = ts
                 sync_window_phases.append(sync_window_start)
@@ -572,7 +578,7 @@ def compute_total_values(bbr):
 
 def compute_fairness(data, interval):
     output = ([], [])
-    connections = [0, ] * len(data.keys())
+    connections = {k: 0 for k in data.keys()}
 
     max_ts = 0
     min_ts = float('inf')
@@ -583,7 +589,7 @@ def compute_fairness(data, interval):
     ts = min_ts
     while True:
         if ts > max_ts:
-            return output
+            break
 
         shares = []
         for i in data.keys():
@@ -596,6 +602,7 @@ def compute_fairness(data, interval):
         output[0].append(ts)
         output[1].append(compute_jain_index(*shares))
         ts += interval
+    return output
 
 
 def compute_jain_index(*args):

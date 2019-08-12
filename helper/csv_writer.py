@@ -2,7 +2,8 @@ import os
 import errno
 import numpy as np
 
-from pcap_data import PcapData
+
+from helper.pcap_data import PcapData
 
 from helper import CSV_PATH, CSV_FILE_NAMES, INFORMATION_FILE
 from helper import COMPRESSION_EXTENSIONS
@@ -162,7 +163,7 @@ def write_info_file(path, pcap_data):
                                                                              'Median', 'Mean',
                                                                              'Std Dev', 'Min',
                                                                              'Max'))
-            for c, data in d[1].iteritems():
+            for c, data in d[1].items():
                 value_range = int(len(data[d[2]]) * percentage)
                 if value_range < 1:
                     continue

@@ -3,7 +3,7 @@ import time
 import sys
 import gzip
 import bz2
-
+import re
 import os
 
 from helper import CSV_PATH, PLOT_PATH
@@ -53,8 +53,8 @@ def get_host_version():
 
 def get_available_algorithms():
     try:
-        return subprocess.check_output(['sysctl net.ipv4.tcp_available_congestion_control '
-                                        '| sed -ne "s/[^=]* = \(.*\)/\\1/p"'], shell=True)
+        return subprocess.getoutput(['sysctl net.ipv4.tcp_available_congestion_control '
+                                        '| sed -ne "s/[^=]* = \(.*\)/\\1/p"'])
     except subprocess.CalledProcessError as e:
         print_error('Cannot retrieve available congestion control algorithms.')
         print_error(e)
@@ -179,5 +179,58 @@ def check_directory(dir, only_new=False):
             return False
 
     return True
+
+
+
+
+def open_compressed_file(path, write=False):
+    file_extension = os.path.splitext(path)[1].replace('.', '')
+    if file_extension == 'gz':
+        if write:
+            f = gzip.open(path, 'wt')
+        else:
+            f = gzip.open(path)
+    elif file_extension == 'bz2':
+        if write:
+            f = bz2.BZ2File(path, 'wt')
+        else:
+            f = bz2.BZ2File(path)
+    elif file_extension in ['csv', 'pcap', FLOW_FILE_EXTENSION, BUFFER_FILE_EXTENSION]:
+        if write:
+            f = open(path, 'w')
+        else:
+            f = open(path)
+    else:
+        raise Exception('Unknown file extension: {}'.format(file_extension))
+    return f
+
+
+def check_directory(dir, only_new=False):
+
+    pcap1_exists = find_file(os.path.join(dir, PCAP1)) is not None
+    pcap2_exists = find_file(os.path.join(dir, PCAP2)) is not None
+
+    if not pcap1_exists & pcap2_exists:
+        return False
+
+    if only_new:
+        csv_path = os.path.join(dir, CSV_PATH)
+        pdf_path = os.path.join(dir, PLOT_PATH)
+        if os.path.exists(csv_path) and os.path.exists(pdf_path):
+            return False
+
+    return True
+
+
+def get_ip_from_filename(filename):
+    ip = os.path.splitext(os.path.basename(filename))[0]
+    ip = re.findall(r'[0-9]+(?:\.[0-9]+){3}', ip)[0]
+    return ip
+
+
+def get_interface_from_filename(filename):
+    intf = os.path.splitext(os.path.basename(filename))[0]
+    intf = re.findall(r'[^=]*-[^=]*-', intf)[0]
+    return intf[:-1]
 
 

@@ -202,9 +202,9 @@ def run_test(commands, output_directory, name, bandwidth, initial_rtt, initial_l
         if cmd['command'] != 'host':
             continue
         send = net.get('h{}'.format(host_counter))
-        send.setIP('10.1.{}.{}/8'.format(host_counter / 256, host_counter % 256))
+        send.setIP('10.1.{}.{}/8'.format(host_counter // 256, host_counter % 256))
         recv = net.get('r{}'.format(host_counter))
-        recv.setIP('10.2.{}.{}/8'.format(host_counter / 256, host_counter % 256))
+        recv.setIP('10.2.{}.{}/8'.format(host_counter // 256, host_counter % 256))
         host_counter += 1
 
         # setup FQ, algorithm, netem, nc host
