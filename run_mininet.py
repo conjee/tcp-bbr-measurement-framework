@@ -116,7 +116,7 @@ def parseConfigFile(file):
     return output
 
 
-def run_test(commands, directory, name, bandwidth, initial_rtt, buffer_size, buffer_latency, poll_interval):
+def run_test(commands, directory, name, bandwidth, initial_rtt, bucket_size, buffer_latency, poll_interval):
     duration = 0
     start_time = 0
     number_of_hosts = 0
@@ -132,7 +132,7 @@ def run_test(commands, directory, name, bandwidth, initial_rtt, buffer_size, buf
         'Kernel: {}'.format(get_host_version()),
         'Git Commit: {}'.format(get_git_revision_hash()),
         'Initial Bandwidth: {}'.format(bandwidth),
-        'Burst Buffer: {}'.format(buffer_size),
+        'Burst Size: {}'.format(bucket_size),
         'Buffer Latency: {}'.format(buffer_latency),
         'Commands: '
     ]
@@ -201,8 +201,8 @@ def run_test(commands, directory, name, bandwidth, initial_rtt, buffer_size, buf
         send.cmd('./ss_script.sh {} >> {}.bbr &'.format(poll_interval, os.path.join(output_directory, send.IP())))
 
     s2, s3 = net.get('s2', 's3')
-    s2.cmd('tc qdisc add dev s2-eth2 root tbf rate {} buffer {} latency {}'.format(
-        bandwidth, buffer_size, buffer_latency))
+    s2.cmd('tc qdisc add dev s2-eth2 root tbf rate {} burst {} latency {}'.format(
+        bandwidth, bucket_size, buffer_latency))
 
     netem_running = False
     if initial_rtt != '0ms':
@@ -224,8 +224,8 @@ def run_test(commands, directory, name, bandwidth, initial_rtt, buffer_size, buf
             if cmd['command'] == 'link':
                 s2 = net.get('s2')
                 if cmd['change'] == 'bw':
-                    s2.cmd('tc qdisc change dev s2-eth2 root tbf rate {} buffer {} latency {}'.format(
-                        cmd['value'], buffer_size, buffer_latency))
+                    s2.cmd('tc qdisc change dev s2-eth2 root tbf rate {} burst {} latency {}'.format(
+                        cmd['value'], bucket_size, buffer_latency))
                     log_String = '  Change bandwidth to {}.'.format(cmd['value'])
                 elif cmd['change'] == 'rtt':
                     if netem_running:
@@ -263,7 +263,7 @@ def verify_arguments(args, commands):
 
     verified &= verify('rate', args.bandwidth)
     verified &= verify('time', args.rtt)
-    verified &= verify('size', args.buffer_size)
+    verified &= verify('size', args.bucket_size)
     verified &= verify('time', args.latency)
 
     for c in commands:
@@ -309,7 +309,7 @@ if __name__ == '__main__':
                         default='0ms', help='Initial rtt for all flows. (default 0ms)')
     parser.add_argument('-d', dest='directory',
                         default='test/', help='Path to the output directory. (default: test/)')
-    parser.add_argument('-s', dest='buffer_size',
+    parser.add_argument('-s', dest='bucket_size',
                         default='1600b', help='Burst size of the token bucket filter. (default: 1600b)')
     parser.add_argument('-l', dest='latency',
                         default='100ms', help='Maximum latency at the bottleneck buffer. (default: 100ms)')
@@ -337,7 +337,7 @@ if __name__ == '__main__':
     run_test(bandwidth=args.bandwidth,
              initial_rtt=args.rtt,
              commands=commands,
-             buffer_size=args.buffer_size,
+             bucket_size=args.bucket_size,
              buffer_latency=args.latency,
              name=args.name,
              directory=args.directory,
