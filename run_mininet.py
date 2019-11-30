@@ -116,7 +116,7 @@ def parseConfigFile(file):
     return output
 
 
-def run_test(commands, directory, name, bandwidth, initial_rtt, bucket_size, buffer_latency, poll_interval):
+def run_test(commands, directory, name, bandwidth, initial_rtt, loss_rate, bucket_size, buffer_latency, poll_interval):
     duration = 0
     start_time = 0
     number_of_hosts = 0
@@ -133,6 +133,7 @@ def run_test(commands, directory, name, bandwidth, initial_rtt, bucket_size, buf
         'Git Commit: {}'.format(get_git_revision_hash()),
         'Initial Bandwidth: {}'.format(bandwidth),
         'Burst Size: {}'.format(bucket_size),
+        'Loss Rate: {}'.format(loss_rate),
         'Buffer Latency: {}'.format(buffer_latency),
         'Commands: '
     ]
@@ -203,6 +204,9 @@ def run_test(commands, directory, name, bandwidth, initial_rtt, bucket_size, buf
     s2, s3 = net.get('s2', 's3')
     s2.cmd('tc qdisc add dev s2-eth2 root tbf rate {} burst {} latency {}'.format(
         bandwidth, bucket_size, buffer_latency))
+    
+    s3.cmd('tc qdisc add dev s3-eth1 root netem loss {}'.format(loss_rate))
+    s3.cmd('tc qdisc add dev s3-eth2 root netem loss {}'.format(loss_rate))
 
     netem_running = False
     if initial_rtt != '0ms':
@@ -307,6 +311,8 @@ if __name__ == '__main__':
                         default='10Mbit', help='Initial bandwidth of the bottleneck link. (default: 10mbit)')
     parser.add_argument('-r', dest='rtt',
                         default='0ms', help='Initial rtt for all flows. (default 0ms)')
+    parser.add_argument('--loss', dest='loss_rate',
+                        default='0%', help='Packet loss rate between the bottleneck link and receiviers for all flows applied to both directions. (default: 0%)')
     parser.add_argument('-d', dest='directory',
                         default='test/', help='Path to the output directory. (default: test/)')
     parser.add_argument('-s', dest='bucket_size',
@@ -336,6 +342,7 @@ if __name__ == '__main__':
     # setLogLevel('info')
     run_test(bandwidth=args.bandwidth,
              initial_rtt=args.rtt,
+             loss_rate=args.loss_rate,
              commands=commands,
              bucket_size=args.bucket_size,
              buffer_latency=args.latency,
