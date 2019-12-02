@@ -312,7 +312,7 @@ if __name__ == '__main__':
     parser.add_argument('-r', dest='rtt',
                         default='0ms', help='Initial rtt for all flows. (default 0ms)')
     parser.add_argument('--loss', dest='loss_rate',
-                        default='0%', help='Packet loss rate between the bottleneck link and receiviers for all flows applied to both directions. (default: 0%)')
+                        default='0%', help='Packet loss rate between the bottleneck link and receiviers for all flows applied to both directions. (default: %(default)s)')
     parser.add_argument('-d', dest='directory',
                         default='test/', help='Path to the output directory. (default: test/)')
     parser.add_argument('-s', dest='bucket_size',
